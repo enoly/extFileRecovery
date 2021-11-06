@@ -1,5 +1,5 @@
 meta:
-    id: ext3_superblock
+    id: ext3Superblock
     endian: le
 seq:
     - id: inodes_count
