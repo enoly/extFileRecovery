@@ -82,8 +82,31 @@ func main() {
 		inodeTable = append(inodeTable, *inode)
 	}
 
-	for i := 0; i < 11; i++ {
-		fmt.Printf("Inode %v: %+v\n", i+1, inodeTable[i])
+	rawRootDirectory := make([]byte, 0)
+	fmt.Printf("Inode 2, size: %v, direct blocks:\n", inodeTable[1].Size)
+	for _, blockNum := range inodeTable[1].DirectBlocks {
+		fmt.Printf("%v ", blockNum.Ptr)
+
+		if blockNum.Ptr != 0 {
+			syscall.Seek(fd, int64(blockNum.Ptr)*int64(blockSize), 0)
+
+			rawBlock := make([]byte, blockSize)
+			_, err = syscall.Read(fd, rawBlock)
+			if err != nil {
+				fmt.Printf("Error: %v", err)
+				return
+			}
+
+			rawRootDirectory = append(rawRootDirectory, rawBlock...)
+		}
+	}
+	fmt.Println()
+
+	rootDirectory := NewExt3Directory()
+	rootDirectory.Read(kaitai.NewStream(bytes.NewReader(rawRootDirectory)), rootDirectory, rootDirectory)
+
+	for _, entry := range rootDirectory.Entries {
+		fmt.Printf("%+v\n", entry)
 	}
 
 	err = syscall.Close(fd)
