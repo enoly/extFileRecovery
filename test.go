@@ -62,8 +62,28 @@ func main() {
 		GDT = append(GDT, *GDTRecord)
 	}
 
-	for i, record := range GDT {
-		fmt.Printf("Descriptor of %v group: %+v\n", i+1, record)
+	fmt.Printf("First block group descriptor %+v\n", GDT[0])
+	fmt.Printf("Inode size %v\n", sb.InodeSize)
+
+	var inodeTableSeek uint64 = uint64(GDT[0].InodeTableBlock) * uint64(blockSize)
+	syscall.Seek(fd, int64(inodeTableSeek), 0)
+
+	rawInodeTable := make([]byte, sb.InodesPerGroup*uint32(sb.InodeSize))
+	_, err = syscall.Read(fd, rawInodeTable)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		return
+	}
+
+	inodeTable := make([]Ext3Inode, 0)
+	for i := 0; i < int(sb.InodesPerGroup); i++ {
+		inode := NewExt3Inode()
+		inode.Read(kaitai.NewStream(bytes.NewReader(rawInodeTable[i*int(sb.InodeSize):(i+1)*int(sb.InodeSize)])), inode, inode)
+		inodeTable = append(inodeTable, *inode)
+	}
+
+	for i := 0; i < 11; i++ {
+		fmt.Printf("Inode %v: %+v\n", i+1, inodeTable[i])
 	}
 
 	err = syscall.Close(fd)
