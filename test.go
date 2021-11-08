@@ -109,6 +109,19 @@ func main() {
 		fmt.Printf("%+v\n", entry)
 	}
 
+	journalInode := inodeTable[sb.JournalInodeNum-1]
+	syscall.Seek(fd, int64(journalInode.DirectBlocks[0].Ptr*blockSize), 0)
+	rawJournalSuperblock := make([]byte, 1024)
+	_, err = syscall.Read(fd, rawJournalSuperblock)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		return
+	}
+
+	journalSuperblock := NewExt3JournalSuperblock()
+	journalSuperblock.Read(kaitai.NewStream(bytes.NewReader(rawJournalSuperblock)), journalSuperblock, journalSuperblock)
+	fmt.Printf("%+v\n", journalSuperblock)
+
 	err = syscall.Close(fd)
 	if err != nil {
 		fmt.Printf("Error: %v", err)
