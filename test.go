@@ -104,16 +104,50 @@ func main() {
 	}
 	fmt.Println()
 
-	// rootDirectory := NewExt3Directory()
-	// rootDirectory.Read(kaitai.NewStream(bytes.NewReader(rawRootDirectory)), rootDirectory, rootDirectory)
+	rootDirectory := ext3.NewDirectory()
+	rootDirectory.Read(kaitai.NewStream(bytes.NewReader(rawRootDirectory)), rootDirectory, rootDirectory)
 
-	// for _, entry := range rootDirectory.Entries {
-	// 	fmt.Printf("%+v\n", entry)
-	// }
+	for _, entry := range rootDirectory.Entries {
+		if entry.FileType != ext3.Directory_DirEntry_FileTypeEnum__Unknown && entry.InodePtr != 0 {
+			fmt.Printf("%v\n", entry.Name)
+
+			if len(entry.Padding) > 3 {
+				deletedFiles := ext3.NewDeletedFiles()
+				deletedFiles.Read(kaitai.NewStream(bytes.NewReader(entry.Padding)), deletedFiles, deletedFiles)
+
+				for _, deletedFile := range deletedFiles.Entries {
+					if deletedFile.FileType != ext3.DeletedFiles_DeletedEntry_FileTypeEnum__Unknown && deletedFile.InodePtr != 0 {
+						fmt.Printf("deleted: %v\n", deletedFile.Name)
+					}
+				}
+			}
+		}
+	}
 
 	journalInode := inodeTable[sb.JournalInodeNum-1]
-	for journalBlockNum, directJournalBlock := range journalInode.DirectBlocks {
-		syscall.Seek(fd, int64(directJournalBlock.Ptr*blockSize), 0)
+	journalBlocks := []uint32{}
+	for _, directJournalBlock := range journalInode.DirectBlocks {
+		if directJournalBlock.Ptr != 0 {
+			journalBlocks = append(journalBlocks, directJournalBlock.Ptr)
+		}
+	}
+	syscall.Seek(fd, int64(journalInode.FirstLevelIndirectBlock.Ptr*blockSize), 0)
+	rawFirstIndirectJournalBlock := make([]byte, blockSize)
+	_, err = syscall.Read(fd, rawFirstIndirectJournalBlock)
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		return
+	}
+	firstIndirectJournalBlock := ext3.NewIndirectBlock()
+	firstIndirectJournalBlock.Read(kaitai.NewStream(bytes.NewReader(rawFirstIndirectJournalBlock)), firstIndirectJournalBlock, firstIndirectJournalBlock)
+	for _, directJournalBlock := range firstIndirectJournalBlock.BlocksPtrs {
+		if directJournalBlock.Ptr != 0 {
+			journalBlocks = append(journalBlocks, directJournalBlock.Ptr)
+		}
+	}
+
+	for journalBlockNum, journalBlock := range journalBlocks {
+		syscall.Seek(fd, int64(journalBlock*blockSize), 0)
 		rawJournalBlock := make([]byte, blockSize)
 		_, err = syscall.Read(fd, rawJournalBlock)
 		if err != nil {
@@ -123,16 +157,20 @@ func main() {
 
 		journalBlockHeader := ext3Journal.NewHeader()
 		journalBlockHeader.Read(kaitai.NewStream(bytes.NewReader(rawJournalBlock)), journalBlockHeader, journalBlockHeader)
-		if journalBlockHeader.BlockType == ext3Journal.Header_BlockTypeEnum__SuperblockV2 {
+		switch journalBlockHeader.BlockType {
+		case ext3Journal.Header_BlockTypeEnum__SuperblockV2:
 			fmt.Printf("[%v] Superblock\n", journalBlockNum)
-		} else if journalBlockHeader.BlockType == ext3Journal.Header_BlockTypeEnum__DescriptorBlock {
+		case ext3Journal.Header_BlockTypeEnum__DescriptorBlock:
 			journalDescriptor := ext3Journal.NewDescriptor()
 			journalDescriptor.Read(kaitai.NewStream(bytes.NewReader(rawJournalBlock)), journalDescriptor, journalDescriptor)
 			fmt.Printf("[%v] Descriptor block\n", journalBlockNum)
-
 			for i, descrBlock := range journalDescriptor.Descriptors {
 				fmt.Printf("[%v] FS block %v\n", journalBlockNum+i+1, descrBlock.FsBlockNum)
 			}
+		case ext3Journal.Header_BlockTypeEnum__CommitBlock:
+			fmt.Printf("[%v] Commit block\n", journalBlockNum)
+		case ext3Journal.Header_BlockTypeEnum__RevokeBlock:
+			fmt.Printf("[%v] Revoke block\n", journalBlockNum)
 		}
 	}
 

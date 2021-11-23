@@ -2,11 +2,7 @@
 
 package journal
 
-import (
-	"bytes"
-
-	"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
-)
+import "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
 
 type Descriptor struct {
 	Header      []byte
@@ -39,7 +35,7 @@ func (this *Descriptor) Read(io *kaitai.Stream, parent interface{}, root *Descri
 		}
 		_it := tmp2
 		this.Descriptors = append(this.Descriptors, _it)
-		if _it.Flags.LastRecord == true {
+		if (_it.Flags & 8) == 8 {
 			break
 		}
 	}
@@ -48,12 +44,11 @@ func (this *Descriptor) Read(io *kaitai.Stream, parent interface{}, root *Descri
 
 type Descriptor_DescriptorRecord struct {
 	FsBlockNum uint32
-	Flags      *Descriptor_DescriptorFlags
+	Flags      uint32
 	Uuid       []byte
 	_io        *kaitai.Stream
 	_root      *Descriptor
 	_parent    *Descriptor
-	_raw_Flags []byte
 }
 
 func NewDescriptor_DescriptorRecord() *Descriptor_DescriptorRecord {
@@ -70,72 +65,22 @@ func (this *Descriptor_DescriptorRecord) Read(io *kaitai.Stream, parent *Descrip
 		return err
 	}
 	this.FsBlockNum = uint32(tmp3)
-	tmp4, err := this._io.ReadBytes(int(4))
+	tmp4, err := this._io.ReadU4be()
 	if err != nil {
 		return err
 	}
-	tmp4 = tmp4
-	this._raw_Flags = tmp4
-	_io__raw_Flags := kaitai.NewStream(bytes.NewReader(this._raw_Flags))
-	tmp5 := NewDescriptor_DescriptorFlags()
-	err = tmp5.Read(_io__raw_Flags, this, this._root)
-	if err != nil {
-		return err
+	this.Flags = uint32(tmp4)
+	var tmp5 int8
+	if (this.Flags & 2) == 2 {
+		tmp5 = 0
+	} else {
+		tmp5 = 16
 	}
-	this.Flags = tmp5
-	tmp6, err := this._io.ReadBytes(int(16))
+	tmp6, err := this._io.ReadBytes(int(tmp5))
 	if err != nil {
 		return err
 	}
 	tmp6 = tmp6
 	this.Uuid = tmp6
-	return err
-}
-
-type Descriptor_DescriptorFlags struct {
-	Reserved             uint64
-	LastRecord           bool
-	DeletedByTransaction bool
-	SameUuid             bool
-	SpecialHandling      bool
-	_io                  *kaitai.Stream
-	_root                *Descriptor
-	_parent              *Descriptor_DescriptorRecord
-}
-
-func NewDescriptor_DescriptorFlags() *Descriptor_DescriptorFlags {
-	return &Descriptor_DescriptorFlags{}
-}
-
-func (this *Descriptor_DescriptorFlags) Read(io *kaitai.Stream, parent *Descriptor_DescriptorRecord, root *Descriptor) (err error) {
-	this._io = io
-	this._parent = parent
-	this._root = root
-
-	tmp7, err := this._io.ReadBitsIntBe(28)
-	if err != nil {
-		return err
-	}
-	this.Reserved = tmp7
-	tmp8, err := this._io.ReadBitsIntBe(1)
-	if err != nil {
-		return err
-	}
-	this.LastRecord = tmp8 != 0
-	tmp9, err := this._io.ReadBitsIntBe(1)
-	if err != nil {
-		return err
-	}
-	this.DeletedByTransaction = tmp9 != 0
-	tmp10, err := this._io.ReadBitsIntBe(1)
-	if err != nil {
-		return err
-	}
-	this.SameUuid = tmp10 != 0
-	tmp11, err := this._io.ReadBitsIntBe(1)
-	if err != nil {
-		return err
-	}
-	this.SpecialHandling = tmp11 != 0
 	return err
 }
