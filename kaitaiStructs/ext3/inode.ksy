@@ -1,5 +1,5 @@
 meta:
-    id: ext3_inode
+    id: inode
     endian: le
 seq:
     - id: mode

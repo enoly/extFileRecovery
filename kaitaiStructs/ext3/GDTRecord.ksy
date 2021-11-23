@@ -1,5 +1,5 @@
 meta:
-    id: ext3_gdt_record
+    id: gdt_record
     endian: le
 seq:
     - id: block_bitmap_block

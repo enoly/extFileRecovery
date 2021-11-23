@@ -1,5 +1,6 @@
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
-package main
+
+package ext3
 
 import (
 	"bytes"
@@ -7,40 +8,40 @@ import (
 	"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
 )
 
-type Ext3Superblock_StateEnum int
+type Superblock_StateEnum int
 
 const (
-	Ext3Superblock_StateEnum__ValidFs               Ext3Superblock_StateEnum = 1
-	Ext3Superblock_StateEnum__ErrorFs               Ext3Superblock_StateEnum = 2
-	Ext3Superblock_StateEnum__OrphansBeingRecovered Ext3Superblock_StateEnum = 4
+	Superblock_StateEnum__ValidFs               Superblock_StateEnum = 1
+	Superblock_StateEnum__ErrorFs               Superblock_StateEnum = 2
+	Superblock_StateEnum__OrphansBeingRecovered Superblock_StateEnum = 4
 )
 
-type Ext3Superblock_ErrorsEnum int
+type Superblock_ErrorsEnum int
 
 const (
-	Ext3Superblock_ErrorsEnum__ActContinue Ext3Superblock_ErrorsEnum = 1
-	Ext3Superblock_ErrorsEnum__ActReadOnly Ext3Superblock_ErrorsEnum = 2
-	Ext3Superblock_ErrorsEnum__ActPanic    Ext3Superblock_ErrorsEnum = 3
+	Superblock_ErrorsEnum__ActContinue Superblock_ErrorsEnum = 1
+	Superblock_ErrorsEnum__ActReadOnly Superblock_ErrorsEnum = 2
+	Superblock_ErrorsEnum__ActPanic    Superblock_ErrorsEnum = 3
 )
 
-type Ext3Superblock_CreatorOsEnum int
+type Superblock_CreatorOsEnum int
 
 const (
-	Ext3Superblock_CreatorOsEnum__Linux   Ext3Superblock_CreatorOsEnum = 0
-	Ext3Superblock_CreatorOsEnum__Hurd    Ext3Superblock_CreatorOsEnum = 1
-	Ext3Superblock_CreatorOsEnum__Masix   Ext3Superblock_CreatorOsEnum = 2
-	Ext3Superblock_CreatorOsEnum__FreeBsd Ext3Superblock_CreatorOsEnum = 3
-	Ext3Superblock_CreatorOsEnum__Lites   Ext3Superblock_CreatorOsEnum = 4
+	Superblock_CreatorOsEnum__Linux   Superblock_CreatorOsEnum = 0
+	Superblock_CreatorOsEnum__Hurd    Superblock_CreatorOsEnum = 1
+	Superblock_CreatorOsEnum__Masix   Superblock_CreatorOsEnum = 2
+	Superblock_CreatorOsEnum__FreeBsd Superblock_CreatorOsEnum = 3
+	Superblock_CreatorOsEnum__Lites   Superblock_CreatorOsEnum = 4
 )
 
-type Ext3Superblock_MajorVersionEnum int
+type Superblock_MajorVersionEnum int
 
 const (
-	Ext3Superblock_MajorVersionEnum__Orignial Ext3Superblock_MajorVersionEnum = 0
-	Ext3Superblock_MajorVersionEnum__Dynamic  Ext3Superblock_MajorVersionEnum = 1
+	Superblock_MajorVersionEnum__Orignial Superblock_MajorVersionEnum = 0
+	Superblock_MajorVersionEnum__Dynamic  Superblock_MajorVersionEnum = 1
 )
 
-type Ext3Superblock struct {
+type Superblock struct {
 	InodesCount         uint32
 	BlocksCount         uint32
 	ReservedBlocksCount uint32
@@ -57,13 +58,13 @@ type Ext3Superblock struct {
 	MountCount          uint16
 	MaxMountCount       uint16
 	Signature           []byte
-	FsState             Ext3Superblock_StateEnum
-	Errors              Ext3Superblock_ErrorsEnum
+	FsState             Superblock_StateEnum
+	Errors              Superblock_ErrorsEnum
 	MinorVersion        uint16
 	LastCheck           uint32
 	CheckInterval       uint32
-	CreatorOs           Ext3Superblock_CreatorOsEnum
-	MajorVersion        Ext3Superblock_MajorVersionEnum
+	CreatorOs           Superblock_CreatorOsEnum
+	MajorVersion        Superblock_MajorVersionEnum
 	DefReservedUid      uint16
 	DefReservedGid      uint16
 	FirstInode          uint32
@@ -84,15 +85,15 @@ type Ext3Superblock struct {
 	JournalDevice       uint32
 	OrphanInodes        uint32
 	_io                 *kaitai.Stream
-	_root               *Ext3Superblock
+	_root               *Superblock
 	_parent             interface{}
 }
 
-func NewExt3Superblock() *Ext3Superblock {
-	return &Ext3Superblock{}
+func NewSuperblock() *Superblock {
+	return &Superblock{}
 }
 
-func (this *Ext3Superblock) Read(io *kaitai.Stream, parent interface{}, root *Ext3Superblock) (err error) {
+func (this *Superblock) Read(io *kaitai.Stream, parent interface{}, root *Superblock) (err error) {
 	this._io = io
 	this._parent = parent
 	this._root = root
@@ -185,12 +186,12 @@ func (this *Ext3Superblock) Read(io *kaitai.Stream, parent interface{}, root *Ex
 	if err != nil {
 		return err
 	}
-	this.FsState = Ext3Superblock_StateEnum(tmp17)
+	this.FsState = Superblock_StateEnum(tmp17)
 	tmp18, err := this._io.ReadU2le()
 	if err != nil {
 		return err
 	}
-	this.Errors = Ext3Superblock_ErrorsEnum(tmp18)
+	this.Errors = Superblock_ErrorsEnum(tmp18)
 	tmp19, err := this._io.ReadU2le()
 	if err != nil {
 		return err
@@ -210,12 +211,12 @@ func (this *Ext3Superblock) Read(io *kaitai.Stream, parent interface{}, root *Ex
 	if err != nil {
 		return err
 	}
-	this.CreatorOs = Ext3Superblock_CreatorOsEnum(tmp22)
+	this.CreatorOs = Superblock_CreatorOsEnum(tmp22)
 	tmp23, err := this._io.ReadU4le()
 	if err != nil {
 		return err
 	}
-	this.MajorVersion = Ext3Superblock_MajorVersionEnum(tmp23)
+	this.MajorVersion = Superblock_MajorVersionEnum(tmp23)
 	tmp24, err := this._io.ReadU2le()
 	if err != nil {
 		return err

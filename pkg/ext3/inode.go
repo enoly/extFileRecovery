@@ -1,9 +1,10 @@
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
-package main
+
+package ext3
 
 import "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
 
-type Ext3Inode struct {
+type Inode struct {
 	Mode                     uint16
 	Uid                      uint16
 	Size                     uint32
@@ -16,25 +17,25 @@ type Ext3Inode struct {
 	Blocks                   uint32
 	Flags                    uint32
 	Osd1                     uint32
-	DirectBlocks             []*Ext3Inode_BlockPtr
-	FirstLevelIndirectBlock  *Ext3Inode_BlockPtr
-	SecondLevelIndirectBlock *Ext3Inode_BlockPtr
-	ThirdLevelIndirectBlock  *Ext3Inode_BlockPtr
+	DirectBlocks             []*Inode_BlockPtr
+	FirstLevelIndirectBlock  *Inode_BlockPtr
+	SecondLevelIndirectBlock *Inode_BlockPtr
+	ThirdLevelIndirectBlock  *Inode_BlockPtr
 	Generation               uint32
 	FileAcl                  uint32
 	DirAcl                   uint32
 	Faddr                    uint32
 	Osd2                     []byte
 	_io                      *kaitai.Stream
-	_root                    *Ext3Inode
+	_root                    *Inode
 	_parent                  interface{}
 }
 
-func NewExt3Inode() *Ext3Inode {
-	return &Ext3Inode{}
+func NewInode() *Inode {
+	return &Inode{}
 }
 
-func (this *Ext3Inode) Read(io *kaitai.Stream, parent interface{}, root *Ext3Inode) (err error) {
+func (this *Inode) Read(io *kaitai.Stream, parent interface{}, root *Inode) (err error) {
 	this._io = io
 	this._parent = parent
 	this._root = root
@@ -99,28 +100,28 @@ func (this *Ext3Inode) Read(io *kaitai.Stream, parent interface{}, root *Ext3Ino
 		return err
 	}
 	this.Osd1 = uint32(tmp12)
-	this.DirectBlocks = make([]*Ext3Inode_BlockPtr, 12)
+	this.DirectBlocks = make([]*Inode_BlockPtr, 12)
 	for i := range this.DirectBlocks {
-		tmp13 := NewExt3Inode_BlockPtr()
+		tmp13 := NewInode_BlockPtr()
 		err = tmp13.Read(this._io, this, this._root)
 		if err != nil {
 			return err
 		}
 		this.DirectBlocks[i] = tmp13
 	}
-	tmp14 := NewExt3Inode_BlockPtr()
+	tmp14 := NewInode_BlockPtr()
 	err = tmp14.Read(this._io, this, this._root)
 	if err != nil {
 		return err
 	}
 	this.FirstLevelIndirectBlock = tmp14
-	tmp15 := NewExt3Inode_BlockPtr()
+	tmp15 := NewInode_BlockPtr()
 	err = tmp15.Read(this._io, this, this._root)
 	if err != nil {
 		return err
 	}
 	this.SecondLevelIndirectBlock = tmp15
-	tmp16 := NewExt3Inode_BlockPtr()
+	tmp16 := NewInode_BlockPtr()
 	err = tmp16.Read(this._io, this, this._root)
 	if err != nil {
 		return err
@@ -155,18 +156,18 @@ func (this *Ext3Inode) Read(io *kaitai.Stream, parent interface{}, root *Ext3Ino
 	return err
 }
 
-type Ext3Inode_BlockPtr struct {
+type Inode_BlockPtr struct {
 	Ptr     uint32
 	_io     *kaitai.Stream
-	_root   *Ext3Inode
-	_parent *Ext3Inode
+	_root   *Inode
+	_parent *Inode
 }
 
-func NewExt3Inode_BlockPtr() *Ext3Inode_BlockPtr {
-	return &Ext3Inode_BlockPtr{}
+func NewInode_BlockPtr() *Inode_BlockPtr {
+	return &Inode_BlockPtr{}
 }
 
-func (this *Ext3Inode_BlockPtr) Read(io *kaitai.Stream, parent *Ext3Inode, root *Ext3Inode) (err error) {
+func (this *Inode_BlockPtr) Read(io *kaitai.Stream, parent *Inode, root *Inode) (err error) {
 	this._io = io
 	this._parent = parent
 	this._root = root

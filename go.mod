@@ -1,4 +1,4 @@
-module example.com/extFileRecover
+module github.com/enoly/extFileRecovery
 
 go 1.17
 

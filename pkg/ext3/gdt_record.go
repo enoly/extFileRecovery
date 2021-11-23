@@ -1,9 +1,10 @@
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
-package main
+
+package ext3
 
 import "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
 
-type Ext3GdtRecord struct {
+type GdtRecord struct {
 	BlockBitmapBlock uint32
 	InodeBitmapBlock uint32
 	InodeTableBlock  uint32
@@ -11,15 +12,15 @@ type Ext3GdtRecord struct {
 	FreeInodesCount  uint16
 	UsedDirsCount    uint16
 	_io              *kaitai.Stream
-	_root            *Ext3GdtRecord
+	_root            *GdtRecord
 	_parent          interface{}
 }
 
-func NewExt3GdtRecord() *Ext3GdtRecord {
-	return &Ext3GdtRecord{}
+func NewGdtRecord() *GdtRecord {
+	return &GdtRecord{}
 }
 
-func (this *Ext3GdtRecord) Read(io *kaitai.Stream, parent interface{}, root *Ext3GdtRecord) (err error) {
+func (this *GdtRecord) Read(io *kaitai.Stream, parent interface{}, root *GdtRecord) (err error) {
 	this._io = io
 	this._parent = parent
 	this._root = root

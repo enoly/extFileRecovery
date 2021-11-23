@@ -1,5 +1,5 @@
 meta:
-    id: ext3_directory
+    id: directory
     endian: le
 seq:
     - id: entries

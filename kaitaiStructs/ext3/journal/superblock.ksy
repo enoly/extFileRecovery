@@ -1,14 +1,9 @@
 meta:
-    id: ext3_journal_superblock
+    id: superblock
     endian: be
 seq:
-    - id: signature
-      type: u4
-    - id: block_type
-      type: u4
-      enum: block_type_enum
-    - id: serial_number
-      type: u4
+    - id: header
+      size: 12
     - id: block_size
       type: u4
     - id: blocks_count
@@ -41,10 +36,3 @@ seq:
       size: 176
     - id: fs_uuids
       size: 768
-enums:
-    block_type_enum:
-        1: descriptor_block
-        2: commit_block
-        3: superblock_v1
-        4: superblock_v2
-        5: revoke_block
