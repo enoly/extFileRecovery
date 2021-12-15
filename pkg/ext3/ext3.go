@@ -3,8 +3,9 @@ package ext3
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
-	"syscall"
 
 	"github.com/enoly/extFileRecovery/pkg/ext3/model"
 	structure "github.com/enoly/extFileRecovery/pkg/ext3/structure"
@@ -22,23 +23,30 @@ const (
 )
 
 type Ext3 struct {
-	drive      string
-	blockSize  uint32
-	superblock structure.Superblock
-	gdt        []structure.GdtRecord
-	journal    []model.JournalRecord
+	Drive      string
+	BlockSize  uint32
+	Superblock structure.Superblock
+	GDT        []structure.GdtRecord
+	Journal    []model.JournalRecord
+	drive      *os.File
 }
 
 func New(drive string) (*Ext3, error) {
+	driveFile, err := os.Open(drive)
+	if err != nil {
+		return nil, err
+	}
+
 	ext3 := &Ext3{
-		drive: drive,
+		Drive: drive,
+		drive: driveFile,
 	}
 
 	if err := ext3.readSuperblock(); err != nil {
 		return nil, fmt.Errorf("unable to process ext3 superblock: %v", err)
 	}
 
-	ext3.blockSize = 1024 << ext3.superblock.LogBlockSize
+	ext3.BlockSize = 1024 << ext3.Superblock.LogBlockSize
 
 	if err := ext3.readGDT(); err != nil {
 		return nil, fmt.Errorf("unable to process ext3 GDT: %v", err)
@@ -51,19 +59,13 @@ func New(drive string) (*Ext3, error) {
 	return ext3, nil
 }
 
-func readBytes(drive string, buffer *[]byte, seek int64) error {
-	fd, err := syscall.Open(drive, syscall.O_RDONLY, FS_PERMISSION)
+func (e *Ext3) Close() {
+	e.drive.Close()
+}
+
+func readBytes(driveFile *os.File, buffer *[]byte, seek int64) error {
+	_, err := driveFile.ReadAt(*buffer, seek)
 	if err != nil {
-		return err
-	}
-
-	defer syscall.Close(fd)
-
-	if _, err := syscall.Seek(fd, seek, SEEK_WHENCE); err != nil {
-		return err
-	}
-
-	if _, err = syscall.Read(fd, *buffer); err != nil {
 		return err
 	}
 
@@ -81,17 +83,17 @@ func (e *Ext3) readSuperblock() error {
 		return fmt.Errorf("unable to read superblock from bytes: %v", err)
 	}
 
-	e.superblock = *sb
+	e.Superblock = *sb
 	return nil
 }
 
 func (e *Ext3) readGDT() error {
-	blockGroupsCount := e.superblock.BlocksCount / e.superblock.BlocksPerGroup
-	if e.superblock.BlocksCount%e.superblock.BlocksPerGroup != 0 {
+	blockGroupsCount := e.Superblock.BlocksCount / e.Superblock.BlocksPerGroup
+	if e.Superblock.BlocksCount%e.Superblock.BlocksPerGroup != 0 {
 		blockGroupsCount++
 	}
 
-	gdtSeek := int64((e.superblock.FirstDataBlock + 1) * e.blockSize)
+	gdtSeek := int64((e.Superblock.FirstDataBlock + 1) * e.BlockSize)
 	gdtSize := GDT_RECORD_SIZE * blockGroupsCount
 	rawGDT := make([]byte, gdtSize)
 	if err := readBytes(e.drive, &rawGDT, gdtSeek); err != nil {
@@ -103,23 +105,23 @@ func (e *Ext3) readGDT() error {
 		if err := record.Read(kaitai.NewStream(bytes.NewReader(rawGDT[i*GDT_RECORD_SIZE:(i+1)*GDT_RECORD_SIZE])), record, record); err != nil {
 			return fmt.Errorf("unable to read GDT record: %v", err)
 		}
-		e.gdt = append(e.gdt, *record)
+		e.GDT = append(e.GDT, *record)
 	}
 
 	return nil
 }
 
 func (e *Ext3) ReadBlock(blockNum uint32) (*[]byte, error) {
-	if blockNum >= e.superblock.BlocksCount {
+	if blockNum >= e.Superblock.BlocksCount {
 		return nil, fmt.Errorf("block %v not found", blockNum)
 	}
 
-	block := make([]byte, e.blockSize)
+	block := make([]byte, e.BlockSize)
 	if blockNum == 0 {
 		return &block, nil
 	}
 
-	blockSeek := int64(blockNum * e.blockSize)
+	blockSeek := int64(blockNum * e.BlockSize)
 
 	if err := readBytes(e.drive, &block, blockSeek); err != nil {
 		return nil, fmt.Errorf("unable to read FS block: %v", err)
@@ -128,22 +130,26 @@ func (e *Ext3) ReadBlock(blockNum uint32) (*[]byte, error) {
 	return &block, nil
 }
 
+func (e *Ext3) GetInodeBlockGroup(inodeNum uint32) uint32 {
+	return uint32(inodeNum / e.Superblock.InodesPerGroup)
+}
+
 func (e *Ext3) GetInodeBlockPtr(inodeNum uint32) (uint32, error) {
-	if inodeNum >= e.superblock.InodesCount {
+	if inodeNum >= e.Superblock.InodesCount {
 		return 0, fmt.Errorf("inode %v not found", inodeNum)
 	}
 
-	inodeBlockGroup := uint32(inodeNum / e.superblock.InodesPerGroup)
-	groupDescriptor := e.gdt[inodeBlockGroup]
+	inodeBlockGroup := e.GetInodeBlockGroup(inodeNum)
+	groupDescriptor := e.GDT[inodeBlockGroup]
 	inodeTableStartBlock := groupDescriptor.InodeTableBlock
-	inodeNumInTable := inodeNum % e.superblock.InodesPerGroup
-	inodesPerBlock := e.blockSize / uint32(e.superblock.InodeSize)
+	inodeNumInTable := inodeNum % e.Superblock.InodesPerGroup
+	inodesPerBlock := e.BlockSize / uint32(e.Superblock.InodeSize)
 	return uint32(inodeNumInTable/inodesPerBlock) + inodeTableStartBlock, nil
 }
 
 func (e *Ext3) GetInodeSeekInBlock(inodeNum uint32) uint32 {
-	inodeNumInTable := inodeNum % e.superblock.InodesPerGroup
-	inodesPerBlock := e.blockSize / uint32(e.superblock.InodeSize)
+	inodeNumInTable := inodeNum % e.Superblock.InodesPerGroup
+	inodesPerBlock := e.BlockSize / uint32(e.Superblock.InodeSize)
 	return (inodeNumInTable - 1) % inodesPerBlock
 }
 
@@ -159,7 +165,7 @@ func (e *Ext3) ReadInode(inodeNum uint32) (*structure.Inode, error) {
 	}
 
 	inodeSeek := e.GetInodeSeekInBlock(inodeNum)
-	inodeSize := uint32(e.superblock.InodeSize)
+	inodeSize := uint32(e.Superblock.InodeSize)
 	rawInode := (*rawInodeTablePart)[inodeSeek*inodeSize : (inodeSeek+1)*inodeSize]
 	inode := structure.NewInode()
 	if err := inode.Read(kaitai.NewStream(bytes.NewReader(rawInode)), inode, inode); err != nil {
@@ -196,13 +202,13 @@ func (e *Ext3) readPtrsFromIndirectBlock(indirectBlockPtr uint32) (*[]uint32, er
 	return &ptrs, nil
 }
 
-func (e *Ext3) readFilePtrsFromInode(inode *structure.Inode) (*[]uint32, error) {
+func (e *Ext3) ReadFilePtrsFromInode(inode *structure.Inode) (*[]uint32, error) {
 	fileBlocks := []uint32{}
 
 	for _, ptr := range inode.DirectBlocks {
 		fileBlocks = append(fileBlocks, ptr.Ptr)
 	}
-	if inode.FirstLevelIndirectBlock.Ptr == 0 {
+	if inode.FirstLevelIndirectBlock == nil || inode.FirstLevelIndirectBlock.Ptr == 0 {
 		return &fileBlocks, nil
 	}
 
@@ -211,7 +217,7 @@ func (e *Ext3) readFilePtrsFromInode(inode *structure.Inode) (*[]uint32, error) 
 		return nil, fmt.Errorf("unable to read blocks from first level indirect blocks: %v", err)
 	}
 	fileBlocks = append(fileBlocks, *firstLevelIndirectBlockPtrs...)
-	if inode.SecondLevelIndirectBlock.Ptr == 0 {
+	if inode.SecondLevelIndirectBlock == nil || inode.SecondLevelIndirectBlock.Ptr == 0 {
 		return &fileBlocks, nil
 	}
 
@@ -227,7 +233,7 @@ func (e *Ext3) readFilePtrsFromInode(inode *structure.Inode) (*[]uint32, error) 
 
 		fileBlocks = append(fileBlocks, *indirectBlockPtrs...)
 	}
-	if inode.ThirdLevelIndirectBlock.Ptr == 0 {
+	if inode.ThirdLevelIndirectBlock == nil || inode.ThirdLevelIndirectBlock.Ptr == 0 {
 		return &fileBlocks, nil
 	}
 
@@ -254,7 +260,7 @@ func (e *Ext3) readFilePtrsFromInode(inode *structure.Inode) (*[]uint32, error) 
 	return &fileBlocks, nil
 }
 
-func (e *Ext3) readFileFromPtrs(filePtrs *[]uint32) (*[]byte, error) {
+func (e *Ext3) ReadFileFromPtrs(filePtrs *[]uint32) (*[]byte, error) {
 	filePtrsCopy := make([]uint32, len(*filePtrs))
 	copy(filePtrsCopy, *filePtrs)
 
@@ -280,11 +286,11 @@ func (e *Ext3) readFileFromPtrs(filePtrs *[]uint32) (*[]byte, error) {
 }
 
 func (e *Ext3) ReadFileFromInode(inode *structure.Inode) (*[]byte, error) {
-	blocksPtrs, err := e.readFilePtrsFromInode(inode)
+	blocksPtrs, err := e.ReadFilePtrsFromInode(inode)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read file blocks pointers: %v", err)
 	}
-	blocks, err := e.readFileFromPtrs(blocksPtrs)
+	blocks, err := e.ReadFileFromPtrs(blocksPtrs)
 	if err != nil {
 		return nil, fmt.Errorf("unabel to read file blocks: %v", err)
 	}
@@ -318,8 +324,15 @@ func (e *Ext3) GetDeletedFilesFromDir(dir *structure.Directory) (*structure.Dele
 	deleted := structure.NewDeletedFiles()
 
 	for _, entry := range dir.Entries {
+		padding := make([]byte, len(entry.Padding))
+		copy(padding, entry.Padding)
+
+		if (8+entry.NameLen)%4 != 0 {
+			padding = padding[4-((8+entry.NameLen)%4):]
+		}
+
 		localDeleted := structure.NewDeletedFiles()
-		if err := localDeleted.Read(kaitai.NewStream(bytes.NewReader(entry.Padding)), localDeleted, localDeleted); err != nil {
+		if err := localDeleted.Read(kaitai.NewStream(bytes.NewReader(padding)), localDeleted, localDeleted); err != io.EOF && err != nil {
 			continue
 		}
 
@@ -334,12 +347,12 @@ func (e *Ext3) GetDeletedFilesFromDir(dir *structure.Directory) (*structure.Dele
 }
 
 func (e *Ext3) readJournal() error {
-	journalInodeNum := e.superblock.JournalInodeNum
+	journalInodeNum := e.Superblock.JournalInodeNum
 	journalInode, err := e.ReadInode(journalInodeNum)
 	if err != nil {
 		return fmt.Errorf("unable to read journal inode: %v", err)
 	}
-	journalPtrs, err := e.readFilePtrsFromInode(journalInode)
+	journalPtrs, err := e.ReadFilePtrsFromInode(journalInode)
 	if err != nil {
 		return fmt.Errorf("unable to read journal ptrs: %v", err)
 	}
@@ -369,7 +382,7 @@ func (e *Ext3) readJournal() error {
 	journalBlocksCount := int(journalInode.Size / superblock.BlockSize)
 
 	journalBlock := 1
-	journalBlocksPerFsBlock := e.blockSize / superblock.BlockSize
+	journalBlocksPerFsBlock := e.BlockSize / superblock.BlockSize
 	for journalBlock < journalBlocksCount {
 		blockRaw, err := e.ReadBlock((*journalPtrs)[journalBlock])
 		if err != nil {
@@ -383,7 +396,7 @@ func (e *Ext3) readJournal() error {
 			journalRecords = append(journalRecords, model.JournalRecord{
 				Type:        model.JournalInvalid,
 				RecordNum:   uint32(journalBlock),
-				RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.blockSize],
+				RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.BlockSize],
 				Description: "Invalid record",
 			})
 		}
@@ -394,7 +407,7 @@ func (e *Ext3) readJournal() error {
 				journalRecords = append(journalRecords, model.JournalRecord{
 					Type:        model.JournalDescriptor,
 					RecordNum:   uint32(journalBlock),
-					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.blockSize],
+					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.BlockSize],
 					Description: "Descriptor block",
 				})
 
@@ -408,7 +421,7 @@ func (e *Ext3) readJournal() error {
 					journalRecords = append(journalRecords, model.JournalRecord{
 						Type:        model.JournalMetadata,
 						RecordNum:   uint32(journalBlock + i + 1),
-						RecordBlock: (*journalPtrs)[uint32(journalBlock+i+1)*superblock.BlockSize/e.blockSize],
+						RecordBlock: (*journalPtrs)[uint32(journalBlock+i+1)*superblock.BlockSize/e.BlockSize],
 						Description: fmt.Sprintf("%v", record.FsBlockNum),
 					})
 				}
@@ -421,7 +434,7 @@ func (e *Ext3) readJournal() error {
 				journalRecords = append(journalRecords, model.JournalRecord{
 					Type:        model.JournalCommit,
 					RecordNum:   uint32(journalBlock),
-					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.blockSize],
+					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.BlockSize],
 					Description: "Commit block",
 				})
 			}
@@ -430,7 +443,7 @@ func (e *Ext3) readJournal() error {
 				journalRecords = append(journalRecords, model.JournalRecord{
 					Type:        model.JournalRevoke,
 					RecordNum:   uint32(journalBlock),
-					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.blockSize],
+					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.BlockSize],
 					Description: "Revoke block",
 				})
 			}
@@ -439,7 +452,7 @@ func (e *Ext3) readJournal() error {
 				journalRecords = append(journalRecords, model.JournalRecord{
 					Type:        model.JournalInvalid,
 					RecordNum:   uint32(journalBlock),
-					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.blockSize],
+					RecordBlock: (*journalPtrs)[uint32(journalBlock)*superblock.BlockSize/e.BlockSize],
 					Description: "Unknown block",
 				})
 			}
@@ -448,12 +461,12 @@ func (e *Ext3) readJournal() error {
 		journalBlock++
 	}
 
-	e.journal = journalRecords
+	e.Journal = journalRecords
 	return nil
 }
 
 func (e *Ext3) GetJournal() *[]model.JournalRecord {
-	return &e.journal
+	return &e.Journal
 }
 
 func (e *Ext3) GetFreshInodeFromJournal(inodeNum uint32) (*structure.Inode, error) {
@@ -463,9 +476,9 @@ func (e *Ext3) GetFreshInodeFromJournal(inodeNum uint32) (*structure.Inode, erro
 		return nil, err
 	}
 	inodeSeek := e.GetInodeSeekInBlock(inodeNum)
-	inodeSize := uint32(e.superblock.InodeSize)
+	inodeSize := uint32(e.Superblock.InodeSize)
 
-	for _, record := range e.journal {
+	for _, record := range e.Journal {
 		if record.Type == model.JournalMetadata {
 			recordBlockPtr, err := strconv.ParseUint(record.Description, 10, 32)
 			if err != nil || uint32(recordBlockPtr) != inodeBlock {
@@ -483,7 +496,7 @@ func (e *Ext3) GetFreshInodeFromJournal(inodeNum uint32) (*structure.Inode, erro
 				continue
 			}
 
-			ptrs, err := e.readFilePtrsFromInode(tmpInode)
+			ptrs, err := e.ReadFilePtrsFromInode(tmpInode)
 			if err != nil {
 				continue
 			}
@@ -492,15 +505,36 @@ func (e *Ext3) GetFreshInodeFromJournal(inodeNum uint32) (*structure.Inode, erro
 			for _, ptr := range *ptrs {
 				if ptr != 0 {
 					flag = true
+				}
+
+				if ptr >= e.Superblock.BlocksCount {
+					flag = false
 					break
 				}
 			}
 
-			if flag {
-				freshInode = *tmpInode
+			if !flag {
+				continue
 			}
+
+			freshInode = *tmpInode
 		}
 	}
 
 	return &freshInode, nil
+}
+
+func (e *Ext3) GetBlockGroupBitmap(blockGroupNum uint32) (*[]bool, error) {
+	bitmapBlockPtr := e.GDT[blockGroupNum].BlockBitmapBlock
+	bitmapBlock, err := e.ReadBlock(bitmapBlockPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	bitmap := structure.NewBitmap()
+	if err := bitmap.Read(kaitai.NewStream(bytes.NewReader(*bitmapBlock)), bitmap, bitmap); err != nil {
+		return nil, err
+	}
+
+	return &bitmap.Flags, nil
 }

@@ -2,7 +2,9 @@
 
 package ext3
 
-import "github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
+import (
+	"github.com/kaitai-io/kaitai_struct_go_runtime/kaitai"
+)
 
 type DeletedFiles struct {
 	Entries []*DeletedFiles_DeletedEntry
