@@ -95,9 +95,8 @@ func (e *Ext4) readSuperblock() (*structure.Superblock, error) {
 		return nil, err
 	}
 
-	if checkFlag(superblock.FeatureIncompatable, INCOMPAT_META_BG) ||
-		checkFlag(superblock.FeatureIncompatable, INCOMPAT_64BIT) {
-		return nil, fmt.Errorf("incompatable ext4 functions enabled")
+	if checkFlag(superblock.FeatureIncompatable, INCOMPAT_META_BG) {
+		return nil, fmt.Errorf("incompatable META_BG enabled")
 	}
 
 	if !checkFlag(superblock.FeatureIncompatable, INCOMPAT_EXTENTS) {
@@ -238,7 +237,7 @@ func (e *Ext4) GetExtentFromBlock(blockPtr uint32) (*structure.Extent, error) {
 }
 
 func (e *Ext4) ReadFileFromExtent(extent *structure.Extent) (*[]byte, error) {
-	if extent.Depth != 0 {
+	if extent == nil || extent.Depth != 0 {
 		return nil, fmt.Errorf("extent is inner")
 	}
 

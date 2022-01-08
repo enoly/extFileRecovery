@@ -52,7 +52,7 @@ func main() {
 	// }
 	// fmt.Printf("Last used block from first group:\n%+v\n", lastUsedBlock)
 
-	// inode, err := ext4fs.ReadInode(12)
+	// inode, err := ext4fs.ReadInode(15)
 	// if err != nil {
 	// 	fmt.Println(err)
 	// 	os.Exit(-1)
@@ -102,11 +102,16 @@ func main() {
 func restoreFromExtents(ext4fs *ext4.Ext4) {
 	for i := uint32(1); i < ext4fs.Superblock.BlocksCount; i++ {
 		if ext4fs.CheckExtentMagic(i) {
-			extent, _ := ext4fs.GetExtentFromBlock(i)
+			extent, err := ext4fs.GetExtentFromBlock(i)
+			if err != nil || extent == nil {
+				continue
+			}
+
 			fmt.Printf("Found indirect extent, try to restore...\n")
 			file, err := ext4fs.ReadFileFromExtent(extent)
 			if err != nil {
 				fmt.Println("unable to restore file from extent")
+				continue
 			}
 
 			if err := os.WriteFile(fmt.Sprintf("fileFromExtent%d", i), *file, 0777); err != nil {
