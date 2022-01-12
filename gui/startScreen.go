@@ -1,14 +1,22 @@
 package gui
 
-import "github.com/maxence-charriere/go-app/v9/pkg/app"
+import (
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+)
 
-type StartScreen struct {
-	app.Compo
-}
+func OpenStartScreen(window fyne.Window) {
+	header := widget.NewLabel("extFileRecovery")
+	description := widget.NewLabel("ext3-4 file recovery tool")
+	description.Alignment = fyne.TextAlignCenter
+	header.Alignment = fyne.TextAlignCenter
 
-func (s *StartScreen) Render() app.UI {
-	return app.Div().Body(
-		app.H1().Text("ext3-4 file recovery tool"),
-		app.A().Href("/selectDrive").Body(app.Button().Body(app.Text("Recover"))),
-	)
+	selectButton := widget.NewButton("Select drive", func() {
+		OpenSelectDrive(window)
+	})
+
+	innerContent := container.New(layout.NewVBoxLayout(), header, description, selectButton)
+	window.SetContent(container.New(layout.NewCenterLayout(), innerContent))
 }

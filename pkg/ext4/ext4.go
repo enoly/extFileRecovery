@@ -257,6 +257,35 @@ func (e *Ext4) ReadFileFromExtent(extent *structure.Extent) (*[]byte, error) {
 	return &file, nil
 }
 
+func (e *Ext4) SaveFileFromExtent(extent *structure.Extent, fileName string) error {
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	if extent == nil || extent.Depth != 0 {
+		return fmt.Errorf("extent is inner")
+	}
+	for _, leaf := range extent.LeafNodes {
+		firstBlock := leaf.FirstBlockLower
+		length := leaf.CoveredBlocks
+		raw := make([]byte, e.BlockSize*uint32(length))
+
+		if err := e.readFromDrive(&raw, int64(firstBlock*e.BlockSize)); err != nil {
+			return err
+		}
+
+		_, err := f.Write(raw)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (e *Ext4) CheckExtentMagic(blockPtr uint32) bool {
 	magic := []byte{10, 243}
 	blockFirstTwoBytes := make([]byte, 2)
