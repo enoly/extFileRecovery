@@ -29,13 +29,13 @@ func showFoundIndirect(dir string, worker *ext_worker.Ext3Worker, window fyne.Wi
 		return
 	}
 
-	if len(*found) == 0 {
-		errorLabel := widget.NewLabel(fmt.Sprintf("Found nothing to restore from directory: %v", dir))
-		backButton := widget.NewButton("Drive list", func() { OpenSelectDrive(window) })
-		content := container.New(layout.NewVBoxLayout(), errorLabel, backButton)
-		window.SetContent(container.New(layout.NewCenterLayout(), content))
-		return
-	}
+	// if err == nil && len(*found) == 0 {
+	// 	errorLabel := widget.NewLabel(fmt.Sprintf("Found nothing to restore from directory: %v", dir))
+	// 	backButton := widget.NewButton("Drive list", func() { OpenSelectDrive(window) })
+	// 	content := container.New(layout.NewVBoxLayout(), errorLabel, backButton)
+	// 	window.SetContent(container.New(layout.NewCenterLayout(), content))
+	// 	return
+	// }
 
 	form := container.New(layout.NewFormLayout())
 	for name, arr := range *found {
@@ -57,7 +57,7 @@ func showFoundIndirect(dir string, worker *ext_worker.Ext3Worker, window fyne.Wi
 	header := widget.NewLabel(fmt.Sprintf("Found %v inodes to restore from indirect", len(*found)))
 	backButton := widget.NewButton("Drive list", func() { OpenSelectDrive(window) })
 	content := container.New(layout.NewVBoxLayout(), header, form, backButton)
-	window.SetContent(container.New(layout.NewCenterLayout(), content))
+	window.SetContent(container.NewVScroll(container.New(layout.NewCenterLayout(), content)))
 }
 
 func OpenFindIndirect(dir string, worker *ext_worker.Ext3Worker, window fyne.Window) {
