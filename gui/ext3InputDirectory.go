@@ -20,8 +20,9 @@ func showError(err error, worker *ext_worker.Ext3Worker, window fyne.Window) {
 func showButtons(dir string, worker *ext_worker.Ext3Worker, window fyne.Window) {
 	journal := widget.NewButton("Find in journal", func() { OpenFindJournal(dir, worker, window) })
 	indirect := widget.NewButton("Find indirect", func() { OpenFindIndirect(dir, worker, window) })
+	fragment := widget.NewButton("Find fragments", func() { OpenFindFragment(worker, window) })
 
-	content := container.New(layout.NewVBoxLayout(), journal, indirect)
+	content := container.New(layout.NewVBoxLayout(), journal, indirect, fragment)
 	window.SetContent(container.New(layout.NewCenterLayout(), content))
 }
 

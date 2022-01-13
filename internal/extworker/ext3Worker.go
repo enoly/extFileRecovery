@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"fyne.io/fyne/v2/data/binding"
 	ext3 "github.com/enoly/extFileRecovery/pkg/ext3"
 	structure "github.com/enoly/extFileRecovery/pkg/ext3/structure"
 )
@@ -204,4 +205,109 @@ func (e *Ext3Worker) RestoreFromPtrs(name string, ptrs *[]uint32) error {
 	}
 
 	return nil
+}
+
+func (e *Ext3Worker) RestoreFragments(found chan uint64, counter *binding.Float) {
+	blockGroupNum := e.ExtFs.Superblock.BlocksCount / e.ExtFs.Superblock.BlocksPerGroup
+	if e.ExtFs.Superblock.BlocksCount%e.ExtFs.Superblock.BlocksPerGroup != 0 {
+		blockGroupNum++
+	}
+
+	for blockGroup := uint32(0); blockGroup < blockGroupNum; blockGroup++ {
+		blockBitmap, err := e.ExtFs.GetBlockGroupBitmap(blockGroup)
+		if err != nil {
+			continue
+		}
+
+		inodeTableSize := e.ExtFs.Superblock.InodesPerGroup * uint32(e.ExtFs.Superblock.InodeSize) / e.ExtFs.BlockSize
+		blocksStart := e.ExtFs.GDT[blockGroup].InodeTableBlock + inodeTableSize
+		for i := blocksStart; i < (blockGroup+1)*e.ExtFs.Superblock.BlocksPerGroup; i++ {
+			if (*blockBitmap)[i-blockGroup*e.ExtFs.Superblock.BlocksPerGroup] {
+				innerPtrs, err := e.recursiveReadPtrs(uint32(i))
+				if err != nil || innerPtrs == nil {
+					continue
+				}
+
+				directBlocks := []uint32{}
+				startOfZeroes := 0
+				for j := len(*innerPtrs) - 1; j >= 0; j-- {
+					if (*innerPtrs)[j] != 0 {
+						break
+					}
+
+					startOfZeroes = j
+				}
+
+				for j, ptr := range *innerPtrs {
+					if j == startOfZeroes {
+						break
+					}
+					directBlocks = append(directBlocks, ptr)
+				}
+
+				found <- uint64(i * blockGroup)
+
+				file, err := e.ExtFs.ReadFileFromPtrs(&directBlocks)
+				if err != nil {
+					continue
+				}
+
+				os.WriteFile(fmt.Sprintf("FragmentFromBlock%d", i), *file, 0777)
+			}
+
+			if (blockGroup*i)%500 == 0 {
+				(*counter).Set(float64(blockGroup*i) / float64(e.ExtFs.Superblock.BlocksCount))
+			}
+		}
+	}
+
+	(*counter).Set(1)
+	close(found)
+}
+
+func (e *Ext3Worker) recursiveReadPtrs(blockPtr uint32) (*[]uint32, error) {
+	ptrs := []uint32{}
+	addrBlock, err := e.ExtFs.ReadIndirectAddrBlock(blockPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	tmp := addrBlock.BlocksPtrs[0].Ptr
+	for j := 1; j < len(addrBlock.BlocksPtrs); j++ {
+		if addrBlock.BlocksPtrs[j].Ptr != 0 {
+			if addrBlock.BlocksPtrs[j].Ptr <= tmp {
+				return nil, nil
+			}
+
+			if addrBlock.BlocksPtrs[j].Ptr > e.ExtFs.Superblock.BlocksCount {
+				return nil, nil
+			}
+
+			tmp = addrBlock.BlocksPtrs[j].Ptr
+		}
+	}
+
+	if addrBlock.BlocksPtrs[0].Ptr == 0 {
+		return nil, nil
+	}
+
+	errFlag := false
+	for _, ptr := range addrBlock.BlocksPtrs {
+		innerPtrs, err := e.recursiveReadPtrs(ptr.Ptr)
+		if err != nil || innerPtrs == nil {
+			errFlag = true
+			break
+		}
+
+		ptrs = append(ptrs, *innerPtrs...)
+	}
+
+	if errFlag {
+		ptrs = []uint32{}
+		for _, ptr := range addrBlock.BlocksPtrs {
+			ptrs = append(ptrs, ptr.Ptr)
+		}
+	}
+
+	return &ptrs, nil
 }
