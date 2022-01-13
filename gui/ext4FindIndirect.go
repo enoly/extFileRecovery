@@ -83,7 +83,7 @@ func OpenExt4FindIndirect(worker *ext_worker.Ext4Worker, window fyne.Window) {
 	counter := binding.NewFloat()
 	counter.Set(0)
 	progress := widget.NewProgressBarWithData(counter)
-	findText := widget.NewLabel("Finding in progress...")
+	findText := widget.NewLabel("Search in progress...")
 	content := container.New(layout.NewVBoxLayout(), findText, progress)
 	window.SetContent(container.New(layout.NewCenterLayout(), content))
 	go findExt4Indirect(worker, &counter, window)

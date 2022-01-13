@@ -24,7 +24,7 @@ func getExt3Worker(drive string, fs string) (*extworker.Ext3Worker, error) {
 func getExt3Content(drive string, fs string, window fyne.Window) *fyne.Container {
 	worker, err := getExt3Worker(drive, fs)
 	if err != nil {
-		errorText := widget.NewLabel(fmt.Sprintf("Unable to get drive list!\n%v", err))
+		errorText := widget.NewLabel(fmt.Sprintf("Unable to get drive info!\n%v", err))
 		errorText.Alignment = fyne.TextAlignCenter
 		return container.New(layout.NewCenterLayout(), errorText)
 	}
@@ -45,7 +45,7 @@ func getExt3Content(drive string, fs string, window fyne.Window) *fyne.Container
 	}
 
 	backButton := widget.NewButton("Back", func() { OpenSelectDrive(window) })
-	findButton := widget.NewButton("Find indirect blocks", func() {})
+	findButton := widget.NewButton("Select directory", func() { OpenInputDirectory(worker, window) })
 	buttonsContent := container.New(layout.NewHBoxLayout(), backButton, layout.NewSpacer(), findButton)
 
 	content := container.New(layout.NewVBoxLayout(), headerDriveName, headerDriveFs, infoBlock, buttonsContent)

@@ -24,7 +24,7 @@ func getExt4Worker(drive string, fs string) (*extworker.Ext4Worker, error) {
 func getExt4Content(drive string, fs string, window fyne.Window) *fyne.Container {
 	worker, err := getExt4Worker(drive, fs)
 	if err != nil {
-		errorText := widget.NewLabel(fmt.Sprintf("Unable to get drive list!\n%v", err))
+		errorText := widget.NewLabel(fmt.Sprintf("Unable to get drive info!\n%v", err))
 		errorText.Alignment = fyne.TextAlignCenter
 		return container.New(layout.NewCenterLayout(), errorText)
 	}

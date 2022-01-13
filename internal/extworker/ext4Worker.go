@@ -65,5 +65,5 @@ func (e *Ext4Worker) GetExtentFromBlock(block uint64) (*structure.Extent, error)
 }
 
 func (e *Ext4Worker) RestoreFileFromExtent(extent *structure.Extent, i int) error {
-	return e.ExtFs.SaveFileFromExtent(extent, fmt.Sprint(i))
+	return e.ExtFs.SaveFileFromExtent(extent, fmt.Sprintf("fileFromExtent%d", i))
 }
